@@ -1,0 +1,222 @@
+---
+title: "hw04_gapminder"
+output: github_document
+always_allow_html: yes
+author: "Liming Liu"
+date: '2018-10-6'
+---
+# Homework 04: Tidy data and joins
+
+```{r}
+library(gapminder)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(reshape2)
+```
+
+
+### Data Reshaping Prompts (and relationship to aggregation)
+
+Problem: You have data in one “shape” but you wish it were in another. Usually this is because the alternative shape is superior for presenting a table, making a figure, or doing aggregation and statistical analysis.
+
+Solution: Reshape your data. For simple reshaping, gather() and spread() from tidyr will suffice. Do the thing that is possible / easier now that your data has a new shape.
+
+#### Activity 2 : Make a tibble with one row per year and columns for life expectancy for two or more countries. Take advantage of this new data shape to scatterplot life expectancy for one country against that of another.
+
+First take a brief look at the data, let's choose the country with the highest lifeExp in each continent.
+```{r}
+gapminder
+```
+
+Africa: 
+
+```{r}
+Af <- gapminder %>% 
+  filter(continent == "Africa") %>% 
+  group_by(country) %>% 
+  summarise(lifeExp_mean = mean(lifeExp)) %>% 
+  arrange(desc(lifeExp_mean))
+knitr::kable(Af) %>% 
+  kable_styling(bootstrap_options = "bordered",latex_options = "basic",full_width = F)
+```
+
+We can see that the country with the highest lifeExp in Africa is Reunion, so let's choose that country. Use the similar method to choose the countries in other continent, show the country with highest lifeExp directly:
+
+Asia:
+
+```{r}
+(As <- gapminder %>% 
+  filter(continent == "Asia") %>% 
+  group_by(country) %>% 
+  summarise(lifeExp_mean = mean(lifeExp)) %>% 
+  filter(lifeExp_mean == max(lifeExp_mean)))
+```
+
+Americas:
+
+```{r}
+(Am <- gapminder %>% 
+  filter(continent == "Americas") %>% 
+  group_by(country) %>% 
+  summarise(lifeExp_mean = mean(lifeExp)) %>% 
+  filter(lifeExp_mean == max(lifeExp_mean)))
+```
+
+Europe:
+
+```{r}
+(Eu <- gapminder %>% 
+  filter(continent == "Europe") %>% 
+  group_by(country) %>% 
+  summarise(lifeExp_mean = mean(lifeExp)) %>% 
+  filter(lifeExp_mean == max(lifeExp_mean)))
+```
+
+Oceania:
+
+```{r}
+(Oc <- gapminder %>% 
+  filter(continent == "Oceania") %>% 
+  group_by(country) %>% 
+  summarise(lifeExp_mean = mean(lifeExp)) %>% 
+  filter(lifeExp_mean == max(lifeExp_mean)))
+```
+
+So the chosen countries are : Reunion, Japan, Canada, Iceland, Australia. Then let's make the tibble. First, filter the data we want to use:
+
+```{r}
+(lifeExp_data <- gapminder %>% 
+  filter(country == "Reunion" | country == "Japan" | country == "Canada" | country == "Iceland" | country == "Australia") %>% 
+   select(-pop, -gdpPercap, -continent))
+```
+
+Then, use spread() to reshape the data. We need to put each country in a column, and show the lifeExp, so the key is "country" column, and value is "lifeExp" column
+
+```{r}
+lifeExp_year <- lifeExp_data %>% 
+  spread(key = "country", value = "lifeExp")
+knitr::kable(lifeExp_year) %>% 
+  kable_styling(bootstrap_options = "bordered",latex_options = "basic",full_width = F)
+```
+
+Then, making a tibble with the data by using as_tibble().
+
+```{r}
+(lifeExp_tibble <- as_tibble(lifeExp_year))
+```
+
+Now, let's scatterplot life expectancy for one country against that of another. x-axes is year, y-axes is lifeExp, each country is in different colour:
+
+```{r}
+data2 <- lifeExp_tibble %>% 
+  melt(id = "year")
+data2 %>% 
+  ggplot(aes(year, value, color = variable)) + geom_point() + ylab("lifeExp") + ggtitle("scatter plot for lifeExp in each country between 1952 ~ 2007") + geom_smooth(se=FALSE)
+```
+
+We can see that all the countries have an increasing lifeExp, and both Japan and Reunion have a very sharp growth between 1952 to 1980. And Japan goes to top in 1987. However, Reunion always has the lowest lifeExp during the years.
+
+### Join Prompts (join, merge, look up)
+
+#### Activity 1: Create a second data frame, complementary to Gapminder. Join this with (part of) Gapminder using a dplyr join function and make some observations about the process and result. Explore the different types of joins. 
+
+Let's build one row per continent, a continent variable and one or more variables with extra info, so add the largest country, the area of the largest country, the capital of the largest country, and the time zone of the capital. Call the new data frame new_data, and in order to observe result, let's drop Oceania in new_data
+
+```{r}
+new_data <- tibble(continent = c("Africa", "Americas", "Asia", "Europe"), largestCountry = c("Algeria", "Canada", "China", "Russia"), areaOfCountrySqkm = c("2,381,741", "9,984,670", "9,596,961", "17,098,242"), capital = c("Algiers", "Ottawa", "Beijing", "Moscow"), timeZone = c("GMT+1", "GMT-4", "GMT+8", "GMT+3"))
+knitr::kable(new_data) %>% 
+  kable_styling(bootstrap_options = "bordered",latex_options = "basic",full_width = F)
+```
+
+First, let's try left join new_data into gapminder
+```{r}
+(leftJoin <- left_join(gapminder, new_data, by = "continent"))
+```
+
+let's see what happend to Oceania in leftJoin:
+
+```{r}
+leftJoin %>% 
+  filter(continent == "Oceania")
+```
+
+
+We can see that, by left join the gapminder adds the columns in new_data, and two data frames are matching by continent. The total number of rows in gapminder doesn't change, but for the Oceania, because there are no matching rows in new_data, so the data in new added columns is NA.
+
+Then let's try right join new_data into gapminder
+
+```{r}
+(rightJoin <- right_join(gapminder, new_data, by = "continent"))
+```
+
+Let's see if we can find Oceania in rightJoin data frame:
+```{r}
+rightJoin %>% 
+  filter(continent == "Oceania")
+```
+
+So the answer is no.
+
+We can see that, the total rows of new_data become less than gapminder's, and the order of continent is still the same as the order of continent in new_data, because there are more rows in gapminder for a matching continent, so the oringinal new_data rows became larger. And because the Oceania data in gapminder can't find a matching row in new_data, so it doesn't exist in the rightJoin data frame.
+
+Next, let's try inner join:
+
+```{r}
+(innerJoin <- inner_join(gapminder, new_data, by = "continent"))
+```
+
+Let's see if we can find Oceania:
+```{r}
+innerJoin %>% 
+  filter(continent == "Oceania")
+```
+
+So the answer is no.
+
+We can see by inner_join, two dataframe are combined together by matching continent. Since ther are no Oceania in new_data, so the total rows of the innerJoin data frame gets smaller than gapminder.
+
+Next, try full_join:
+
+```{r}
+(fullJoin <- full_join(gapminder, new_data, by = "continent"))
+```
+
+Let's see what happened to Oceania rows:
+
+```{r}
+fullJoin %>% 
+  filter(continent == "Oceania")
+```
+
+We can see that, by full_join, all rows in gapminder and new_data are combined together, so the rows of fullJoin data frame is the same as the gapminder.
+
+Now, try semi_join:
+
+```{r}
+(semiJoin <- semi_join(gapminder, new_data, by = "continent")) 
+```
+
+
+To see whether can find Oceania:
+```{r}
+semiJoin %>% 
+  filter(continent == "Oceania")
+```
+
+We can see semi_join listed all the rows in gapminder that have a match in new_data, that is all the rows except Oceania.
+
+Let's try a reverse order:
+```{r}
+(semiJoin2 <- semi_join(new_data, gapminder, by = "continent")) 
+```
+
+We can see all the rows have matching rows in gapminder, so the number of rows didn't change.
+
+Now try anti_join:
+
+```{r}
+(ant <- anti_join(gapminder, new_data, by = "continent")) 
+```
+
+So we can see because Oceania rows in gapminder donn't have matching rows in new_data, so anti_join listed these rows.
