@@ -1609,7 +1609,7 @@ data2 %>%
 
     ## `geom_smooth()` using method = 'loess' and formula 'y ~ x'
 
-![](hw04_Liming_Liu_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](img/pic1.png)<!-- -->
 
 We can see that all the countries have an increasing lifeExp, and both
 Japan and Reunion have a very sharp growth between 1952 to 1980. And
